@@ -1,8 +1,14 @@
+import unittest
+
 from typing import List
 from math import trunc
+import time
+
+TINPUT_PATH: str = "./../../input/01/tinput"
+INPUT_PATH: str = "./../../input/01/input"
 
 
-def main(filename: str):
+def main(filename: str, part1: bool) -> int:
     turns: List[int] = []
     with open(filename, "r") as f:
         for line in f:
@@ -27,10 +33,24 @@ def main(filename: str):
         if dial == 0:
             p1_zeroes += 1
 
-    print(f"p1_zeroes: {p1_zeroes}")
-    print(f"p2_zeroes: {p2_zeroes + p1_zeroes}")
+    if part1:
+        return p1_zeroes
+    else:
+        return p1_zeroes + p2_zeroes
+
+
+class Aoc(unittest.TestCase):
+    def test_p1(self):
+        self.assertEqual(3, main(TINPUT_PATH, True))
+
+    def test_p2_(self):
+        self.assertEqual(6, main(TINPUT_PATH, False))
 
 
 if __name__ == "__main__":
-    main("t_input")
-    main("input")
+    start = time.time()
+    print(f"p1: {main(INPUT_PATH, False)}", end="")
+    print(f" in: {time.time() - start}")
+    start = time.time()
+    print(f"p1: {main(INPUT_PATH, True)}", end="")
+    print(f" in: {time.time() - start}")

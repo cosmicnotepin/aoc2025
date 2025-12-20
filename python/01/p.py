@@ -23,7 +23,7 @@ def main(filename: str, part1: bool) -> int:
     p1_zeroes = 0
     p2_zeroes = 0
     for turn in turns:
-        full_rots = trunc(turn / 100)
+        full_rots = trunc(turn / 100)  # integer division // rounds -3.5 to -4
         rest = turn - full_rots * 100
         p2_zeroes += abs(full_rots)
         if dial != 0:

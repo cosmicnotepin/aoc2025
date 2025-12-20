@@ -11,13 +11,8 @@ INPUT_PATH: str = "./../../input/01/input"
 def main(filename: str, part1: bool) -> int:
     turns: List[int] = []
     with open(filename, "r") as f:
-        for line in f:
-            amount = int(line[1:])
-            match line[0]:
-                case "L":
-                    turns.append(-amount)
-                case "R":
-                    turns.append(amount)
+        for line in f.read().replace("L", "-").replace("R", "").splitlines():
+            turns.append(int(line))
 
     dial = 50
     p1_zeroes = 0
@@ -49,8 +44,8 @@ class Aoc(unittest.TestCase):
 
 if __name__ == "__main__":
     start = time.time()
-    print(f"p1: {main(INPUT_PATH, False)}", end="")
+    print(f"p1: {main(INPUT_PATH, True)}", end="")
     print(f" in: {time.time() - start}")
     start = time.time()
-    print(f"p1: {main(INPUT_PATH, True)}", end="")
+    print(f"p2: {main(INPUT_PATH, False)}", end="")
     print(f" in: {time.time() - start}")

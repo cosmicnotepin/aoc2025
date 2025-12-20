@@ -6,12 +6,10 @@ const INPUT_PATH: &str = "./../../input/01/input";
 
 fn part1(input: String, part1: bool) -> isize {
     let turns: Vec<isize> = input
+        .replace("L", "-")
+        .replace("R", "")
         .lines()
-        .map(|l| match l.chars().nth(0).unwrap() {
-            'L' => l[1..].parse::<isize>().unwrap() * -1,
-            'R' => l[1..].parse::<isize>().unwrap(),
-            _ => panic!(),
-        })
+        .map(|l| l.parse().unwrap())
         .collect();
     let mut dial: isize = 50;
     let mut p1_zeroes: isize = 0;

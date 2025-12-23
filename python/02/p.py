@@ -1,4 +1,3 @@
-from concurrent.futures.process import _global_shutdown
 import unittest
 
 import time
@@ -14,24 +13,31 @@ def main(filename: str, part1: bool) -> int:
             (lb, ub) for lb, ub in [r.split("-") for r in f.read().strip().split(",")]
         ]
 
+    seen = set()
     for lb, ub in ranges:
         lb_digits = len(lb)
-        if lb_digits % 2 == 1:
-            pre_digits = 10 ** (lb_digits // 2)
-        else:
-            pre_digits = int(lb[0 : lb_digits // 2])
-        while True:
-            candidate = pre_digits * 10 ** len(str(pre_digits)) + pre_digits
-            if candidate > int(ub):
-                break
-            if candidate >= int(lb):
-                p1_res += candidate
-            pre_digits += 1
+        ub_digits = len(ub)
+        max_block_count = 2 if part1 else ub_digits
+        for block_count in range(2, max_block_count + 1):
+            for block_len in range(
+                max(1, lb_digits // block_count), max(1, ub_digits // block_count) + 1
+            ):
+                pre_digits = 10 ** (block_len - 1)
+                while len(str(pre_digits)) == block_len:
+                    candidate = pre_digits
+                    for _ in range(0, block_count - 1):
+                        candidate = candidate * 10**block_len + pre_digits
 
-    if part1:
-        return p1_res
-    else:
-        return 0
+                    if (
+                        candidate <= int(ub)
+                        and candidate >= int(lb)
+                        and candidate not in seen
+                    ):
+                        seen.add(candidate)
+                        p1_res += candidate
+                    pre_digits += 1
+
+    return p1_res
 
 
 class Aoc(unittest.TestCase):
@@ -39,7 +45,7 @@ class Aoc(unittest.TestCase):
         self.assertEqual(1227775554, main(TINPUT_PATH, True))
 
     def test_p2_(self):
-        self.assertEqual(6, main(TINPUT_PATH, False))
+        self.assertEqual(4174379265, main(TINPUT_PATH, False))
 
 
 if __name__ == "__main__":

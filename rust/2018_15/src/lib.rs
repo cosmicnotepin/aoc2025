@@ -15,10 +15,9 @@ struct Combatant {
 
 const INPUT_PATH: &str = "./../../input/2018/15/input";
 const ELF_HP: isize = 200;
-const ELF_DMG: isize = 3;
 const GOBLIN_HP: isize = 200;
-const GOBLIN_DMG: isize = 3;
 
+#[allow(dead_code)]
 fn pprint(map: &Vec<Vec<char>>, cmbtnts: &Vec<Combatant>) {
     println!("");
     for (row_i, row) in map.iter().enumerate() {
@@ -134,7 +133,7 @@ fn calculate_target_index(cmbtnt: &Combatant, cmbtnts: &Vec<Combatant>) -> Optio
 
 fn part(input: String, part1: bool) -> isize {
     let mut orig_combatants: Vec<Combatant> = Vec::new();
-    let mut orig_map: Vec<Vec<char>> = input.lines().map(|l| l.chars().collect()).collect();
+    let orig_map: Vec<Vec<char>> = input.lines().map(|l| l.chars().collect()).collect();
     for (row_i, row) in orig_map.iter().enumerate() {
         for (col_i, col) in row.iter().enumerate() {
             match col {
@@ -156,7 +155,7 @@ fn part(input: String, part1: bool) -> isize {
         .iter()
         .filter(|c| c.race == 'E' && c.hp > 0)
         .count();
-    let mut rounds: isize = 0;
+    let mut rounds: isize;
     let mut dmgs: HashMap<char, isize> = HashMap::from([('G', 3), ('E', 3)]);
     'outerouter: loop {
         let mut map = orig_map.clone();
@@ -173,7 +172,7 @@ fn part(input: String, part1: bool) -> isize {
                 {
                     if let Some(dmg) = dmgs.get_mut(&'E') {
                         *dmg += 1;
-                        println!("dmg: {:?}", dmg)
+                        // println!("dmg: {:?}", dmg)
                     }
                     continue 'outerouter;
                 }
@@ -211,8 +210,8 @@ fn part(input: String, part1: bool) -> isize {
             // println!("rounds: {:?}", rounds);
         }
         combatants.retain(|e| e.hp > 0);
-        println!("rounds: {:?}", rounds);
-        println!("combatants: {:?}", combatants);
+        // println!("rounds: {:?}", rounds);
+        // println!("combatants: {:?}", combatants);
         return combatants.iter().map(|c| c.hp).sum::<isize>() * rounds;
     }
 }

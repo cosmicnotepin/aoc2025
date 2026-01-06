@@ -35,7 +35,7 @@ fn pprint(map: &Vec<Vec<char>>, cmbtnts: &Vec<Combatant>) {
 }
 
 fn neighs(pos: &Array1<isize>) -> Vec<Array1<isize>> {
-    vec![arr1(&[-1, 0]), arr1(&[0, -1]), arr1(&[1, 0]), arr1(&[0, 1])]
+    [arr1(&[-1, 0]), arr1(&[0, -1]), arr1(&[1, 0]), arr1(&[0, 1])]
         .iter()
         .map(|e| e + pos)
         .collect()
@@ -117,11 +117,11 @@ fn calculate_move(
 
 fn calculate_target_index(cmbtnt: &Combatant, cmbtnts: &Vec<Combatant>) -> Option<usize> {
     let ns = neighs(&cmbtnt.pos);
-    let mut candidates: Vec<(usize, Combatant)> = cmbtnts
+    let mut candidates: Vec<(usize, &Combatant)> = cmbtnts
         .iter()
         .enumerate()
         .filter(|(_, e)| e.hp > 0 && e.race != cmbtnt.race && ns.contains(&e.pos))
-        .map(|(i, e)| (i, e.clone()))
+        .map(|(i, e)| (i, d))
         .collect();
     candidates.sort_by_key(|(_, e)| e.hp * -1000000 + e.pos[0] * -1000 - e.pos[1]);
     if let Some((i, _)) = candidates.pop() {

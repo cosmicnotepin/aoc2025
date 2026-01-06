@@ -1,4 +1,5 @@
 use ndarray::{arr1, Array1};
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::error::Error;
@@ -10,7 +11,6 @@ struct Combatant {
     race: char,
     pos: Array1<isize>,
     hp: isize,
-    dmg: isize,
 }
 
 const INPUT_PATH: &str = "./../../input/2018/15/input";
@@ -95,7 +95,6 @@ fn calculate_move(
         }
     }
     in_range.sort_by_key(|(pos, len)| len * -1000000 + pos[0] * -1000 - pos[1]);
-    //println!("in_range: {:?}", in_range);
     if let Some((chosen, _)) = in_range.pop() {
         let mut first_steps: Vec<(Array1<isize>, isize)> = Vec::new();
         for neigh in neighs(&cmbtnt.pos) {
@@ -103,12 +102,10 @@ fn calculate_move(
                 continue;
             }
             if let Some(dist) = get_shortest_path_len(&neigh, &chosen, &map) {
-                //println!("dist: {:?}", dist);
                 first_steps.push((neigh.clone(), dist));
             }
         }
         first_steps.sort_by_key(|(pos, len)| len * -1000000 + pos[0] * -1000 - pos[1]); //sorting desc to be able to pop next!
-                                                                                        //println!("first_steps: {:?}", first_steps);
         if let Some(first_step) = first_steps.pop() {
             return Some(first_step.0);
         } else {
@@ -136,74 +133,88 @@ fn calculate_target_index(cmbtnt: &Combatant, cmbtnts: &Vec<Combatant>) -> Optio
 }
 
 fn part(input: String, part1: bool) -> isize {
-    let mut combatants: Vec<Combatant> = Vec::new();
-    let mut map: Vec<Vec<char>> = input.lines().map(|l| l.chars().collect()).collect();
-    for (row_i, row) in map.iter().enumerate() {
+    let mut orig_combatants: Vec<Combatant> = Vec::new();
+    let mut orig_map: Vec<Vec<char>> = input.lines().map(|l| l.chars().collect()).collect();
+    for (row_i, row) in orig_map.iter().enumerate() {
         for (col_i, col) in row.iter().enumerate() {
             match col {
-                'E' => combatants.push(Combatant {
+                'E' => orig_combatants.push(Combatant {
                     race: 'E',
                     pos: arr1(&[row_i as isize, col_i as isize]),
                     hp: ELF_HP,
-                    dmg: ELF_DMG,
                 }),
-                'G' => combatants.push(Combatant {
+                'G' => orig_combatants.push(Combatant {
                     race: 'G',
                     pos: arr1(&[row_i as isize, col_i as isize]),
                     hp: GOBLIN_HP,
-                    dmg: GOBLIN_DMG,
                 }),
                 _ => (),
             }
         }
     }
+    let orig_elf_count = orig_combatants
+        .iter()
+        .filter(|c| c.race == 'E' && c.hp > 0)
+        .count();
     let mut rounds: isize = 0;
-    'outer: loop {
-        for i in 0..combatants.len() {
-            if combatants[i].hp <= 0 {
-                continue;
-            }
-            if combatants
-                .iter()
-                .filter(|c| c.race != combatants[i].race && c.hp > 0)
-                .count()
-                == 0
-                || combatants
-                    .iter()
-                    .filter(|c| c.race == combatants[i].race && c.hp > 0)
-                    .count()
-                    == 0
-            {
-                break 'outer;
-            }
-            if let Some(mv) = calculate_move(&combatants[i], &combatants, &map) {
-                //println!("mv: {:?}", mv);
-                map[combatants[i].pos[0] as usize][combatants[i].pos[1] as usize] = '.';
-                map[mv[0] as usize][mv[1] as usize] = combatants[i].race;
-                combatants[i].pos = mv;
-            }
-            if let Some(target_index) = calculate_target_index(&combatants[i], &combatants) {
-                combatants[target_index].hp -= combatants[i].dmg;
-                if combatants[target_index].hp <= 0 {
-                    map[combatants[target_index].pos[0] as usize]
-                        [combatants[target_index].pos[1] as usize] = '.';
+    let mut dmgs: HashMap<char, isize> = HashMap::from([('G', 3), ('E', 3)]);
+    'outerouter: loop {
+        let mut map = orig_map.clone();
+        let mut combatants = orig_combatants.clone();
+        rounds = 0;
+        'outer: loop {
+            for i in 0..combatants.len() {
+                if !part1
+                    && orig_elf_count
+                        != combatants
+                            .iter()
+                            .filter(|c| c.race == 'E' && c.hp > 0)
+                            .count()
+                {
+                    if let Some(dmg) = dmgs.get_mut(&'E') {
+                        *dmg += 1;
+                        println!("dmg: {:?}", dmg)
+                    }
+                    continue 'outerouter;
                 }
+                if combatants[i].hp <= 0 {
+                    continue;
+                }
+                for race in ['E', 'G'] {
+                    if combatants
+                        .iter()
+                        .filter(|c| c.race == race && c.hp > 0)
+                        .count()
+                        == 0
+                    {
+                        break 'outer;
+                    }
+                }
+                if let Some(mv) = calculate_move(&combatants[i], &combatants, &map) {
+                    map[combatants[i].pos[0] as usize][combatants[i].pos[1] as usize] = '.';
+                    map[mv[0] as usize][mv[1] as usize] = combatants[i].race;
+                    combatants[i].pos = mv;
+                }
+                if let Some(target_index) = calculate_target_index(&combatants[i], &combatants) {
+                    let attacker_race = combatants[i].race;
+                    combatants[target_index].hp -= dmgs.get(&attacker_race).unwrap();
+                    if combatants[target_index].hp <= 0 {
+                        map[combatants[target_index].pos[0] as usize]
+                            [combatants[target_index].pos[1] as usize] = '.';
+                    }
+                }
+                // pprint(&map, &combatants);
             }
-            // pprint(&map, &combatants);
+            combatants.retain(|e| e.hp > 0);
+            combatants.sort_by_key(|e| e.pos[0] * 1000 + e.pos[1]);
+            rounds += 1;
+            // println!("rounds: {:?}", rounds);
         }
         combatants.retain(|e| e.hp > 0);
-        combatants.sort_by_key(|e| e.pos[0] * 1000 + e.pos[1]);
-        rounds += 1;
-        // println!("rounds: {:?}", rounds);
+        println!("rounds: {:?}", rounds);
+        println!("combatants: {:?}", combatants);
+        return combatants.iter().map(|c| c.hp).sum::<isize>() * rounds;
     }
-    combatants.retain(|e| e.hp > 0);
-    println!("rounds: {:?}", rounds);
-    println!("combatants: {:?}", combatants);
-    return if part1 {
-        combatants.iter().map(|c| c.hp).sum::<isize>() * rounds
-    } else {
-        input.len().try_into().unwrap()
-    };
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {

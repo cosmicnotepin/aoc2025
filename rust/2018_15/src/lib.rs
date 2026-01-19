@@ -121,7 +121,7 @@ fn calculate_target_index(cmbtnt: &Combatant, cmbtnts: &Vec<Combatant>) -> Optio
         .iter()
         .enumerate()
         .filter(|(_, e)| e.hp > 0 && e.race != cmbtnt.race && ns.contains(&e.pos))
-        .map(|(i, e)| (i, d))
+        .map(|(i, e)| (i, e))
         .collect();
     candidates.sort_by_key(|(_, e)| e.hp * -1000000 + e.pos[0] * -1000 - e.pos[1]);
     if let Some((i, _)) = candidates.pop() {

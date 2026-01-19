@@ -3,94 +3,65 @@ use std::fs;
 use std::time::Instant;
 
 use num_integer::Integer;
-//101741582076661 shuffles
-//119315717514047 cards
+// 9223372036854775807
+//     101741582076661 shuffles
+//     119315717514047 cards
 
 const INPUT_PATH: &str = "./input/input";
 
-fn compose(
-    f: Box<dyn Fn(isize) -> isize>,
-    g: Box<dyn Fn(isize) -> isize>,
-) -> Box<dyn Fn(isize) -> isize> {
-    Box::new(move |i| g(f(i)))
+fn shffl(i: isize, a: isize, b: isize, m: isize) -> isize {
+    ((a as u128 * i as u128).rem_euclid(m as u128) as isize + b).rem_euclid(m)
 }
 
 fn inv_mod(nr: isize, modulus: isize) -> isize {
-    nr.extended_gcd(&modulus).x
-}
-
-fn cut(i: isize, c: isize, m: isize) -> isize {
-    (i + c).rem_euclid(m)
-}
-
-fn dwi(i: isize, incr: isize, m: isize) -> isize {
-    let ui = i as u128;
-    let mut im = inv_mod(incr, m);
-    while im < 0 {
-        im += m;
-    }
-    let uim = im as u128;
-    let ures = ((ui * uim).rem_euclid(m as u128)) as isize;
-    ures
-    // (i * inv_mod(incr, m)).rem_euclid(m)
-}
-
-fn dins(i: isize, m: isize) -> isize {
-    (m - 1 - i).rem_euclid(m)
+    nr.extended_gcd(&modulus).x.rem_euclid(modulus)
 }
 
 fn part(input: String, part1: bool, m: isize) -> isize {
-    let mut shuff_res: Box<dyn Fn(isize) -> isize> = Box::new(move |i: isize| i);
-    for instr_s in input.lines() {
+    let mut a: isize = 1;
+    let mut b: isize = 0;
+    for instr_s in input.lines().rev() {
         // println!("instr_s: {:?}", instr_s);
-        let to_comp: Box<dyn Fn(isize) -> isize> = match instr_s.chars().nth(0).unwrap() {
+        match instr_s.chars().nth(0).unwrap() {
             'd' => match instr_s.chars().nth(5).unwrap() {
                 'w' => {
                     let val: isize = instr_s[20..].parse().unwrap();
-                    Box::new(move |i| dwi(i, val, m))
+                    let big_val = inv_mod(val, m) as u128;
+                    b = (b as u128 * big_val).rem_euclid(m as u128) as isize;
+                    a = (a as u128 * big_val).rem_euclid(m as u128) as isize;
                 }
-                'i' => Box::new(move |i| dins(i, m)),
-                _ => Box::new(move |i| i),
+                'i' => {
+                    a = (a * -1).rem_euclid(m);
+                    b = (-b + m - 1).rem_euclid(m);
+                }
+                _ => (),
             },
             'c' => {
                 let val: isize = instr_s[4..].parse().unwrap();
-                Box::new(move |i| cut(i, val, m))
+                b = (b + val).rem_euclid(m);
             }
-            _ => Box::new(move |i| i),
+            _ => (),
         };
-        shuff_res = compose(to_comp, shuff_res);
     }
-    // for ui in 0..m {
-    //     let i = ui as isize;
-    //     print!("{} ", shuff_res(i));
-    //     // print!("{}", dwi(dins(dins(i, m), m), 7, m));
-    // }
-    // println!();
-    // for ui in 0..m {
-    //     let i = ui as isize;
-    //     print!("{}", cut(dwi(dins(i, m), 7, m), 6, m));
-    // }
-    // println!();
 
     return if part1 {
-        // return shuff_res(2019);
         let mut ret = 0;
         for i in 0..m {
-            if shuff_res(i) == 2019 {
+            if shffl(i, a, b, m) == 2019 {
                 ret = i;
                 break;
             }
         }
         ret
     } else {
-        let mut i = 2020;
-        for j in 0isize..101741582076661 {
-            i = shuff_res(i);
-            if i == 2020 {
-                println!(" j: {:?}", j);
-            }
-        }
-        i
+        // ^n -> a^n i + b(a^n-1 + a^n-2 + ... + a^0)
+        // a^n * i + b ((1-a^n)/(1-a)) => division modulo m => MULTIPLICATIVE INVERSE!
+        let a_n = mod_exp::mod_exp(a as u128, 101741582076661 as u128, m as u128) as isize;
+        let first_term = (a_n as u128 * 2020 as u128).rem_euclid(m as u128) as isize;
+        let brkt = ((1 - a_n).rem_euclid(m) as u128 * inv_mod((1 - a).rem_euclid(m), m) as u128)
+            .rem_euclid(m as u128);
+        let second_term = (b as u128 * brkt).rem_euclid(m as u128) as isize;
+        (first_term + second_term).rem_euclid(m)
     };
 }
 

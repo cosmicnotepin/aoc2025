@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+mod_exp = "1.0.1"
 num-integer = "0.1.46"

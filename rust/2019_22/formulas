@@ -1,0 +1,47 @@
+i -> i mod m
+cutting
+i -> i+v mod m
+i -> i-v mod m
+i -> ai+b mod m
+i -> (ai+b)+val mod m
+-> b+=val
+into new stack
+i -> -i + m -1 mod m
+i -> -1*i + m -1 mod m
+(ai+b)*-1 + m - 1
+a = a*-1
+b = -b +m -1
+
+cutting + into new stack
+
+i-> -1*(i+v) + m - 1 mod m
+i-> -i - v + m - 1 mod m
+i-> -1*i + x mod m
+i-> a*i+b mod m
+
+deal with increment
+
+i-> i*inv(incr) mod m
+
+dwi + cutting
+i-> (i+v)*inv(incr) mod m
+i-> i*inv(incr) + v*inv(incr) mod m
+i-> a*i + b mod m
+
+(ai+b)*val
+a = val*a
+b = val*b
+
+-> every possible combination of shuffles has the form:
+i-> a*i+b mod m
+
+-> calculate a,b for one full shuffle
+
+how to do it a gazillion times?
+i -> a*(a*i+b) + b mod m
+i-> a*a*i + a*b +b mod m
+i-> a*a*a*i + a*a*b + a*b + b 
+i-> a^x*i + a^(x-1)*b + a^(x-2)*b + ... + b
+
+^n -> a^n i + a^n-1 b + ... b
+^n -> a^n i + b(a^n-1 + a^n-2 + ... + a^0)

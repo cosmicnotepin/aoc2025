@@ -1,4 +1,5 @@
 use ndarray::{arr1, Array1};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -9,8 +10,8 @@ use std::time::Instant;
 #[derive(Clone, Debug)]
 struct Combatant {
     race: char,
-    pos: Array1<usize>,
-    hp: isize,
+    pos: RefCell<Array1<usize>>,
+    hp: RefCell<isize>,
 }
 
 const INPUT_PATH: &str = "./../../input/2018/15/input";
@@ -26,8 +27,8 @@ fn pprint(map: &Vec<Vec<char>>, cmbtnts: &Vec<Combatant>) {
         }
         print!(" ");
         for cmbtnt in cmbtnts {
-            if cmbtnt.pos[0] == row_i {
-                print!("{}({})", cmbtnt.race, cmbtnt.hp);
+            if cmbtnt.pos.borrow()[0] == row_i {
+                print!("{}({})", cmbtnt.race, cmbtnt.hp.borrow());
             }
         }
         println!("");
@@ -85,15 +86,18 @@ fn calculate_move(
     map: &Vec<Vec<char>>,
 ) -> Option<Array1<usize>> {
     let mut in_range: Vec<(Array1<usize>, isize)> = Vec::new();
-    for trgt in cmbtnts.iter().filter(|c| c.race != cmbtnt.race && c.hp > 0) {
-        for trgt_neigh in neighs(&trgt.pos) {
-            if trgt_neigh == cmbtnt.pos {
+    for trgt in cmbtnts
+        .iter()
+        .filter(|c| c.race != cmbtnt.race && *c.hp.borrow() > 0)
+    {
+        for trgt_neigh in neighs(&trgt.pos.borrow()) {
+            if trgt_neigh == *cmbtnt.pos.borrow() {
                 return None; //target in range, no need to mave
             }
             if map[trgt_neigh[0]][trgt_neigh[1]] != '.' {
                 continue;
             }
-            if let Some(dist) = get_shortest_path_len(&cmbtnt.pos, &trgt_neigh, map) {
+            if let Some(dist) = get_shortest_path_len(&cmbtnt.pos.borrow(), &trgt_neigh, map) {
                 in_range.push((trgt_neigh.clone(), dist))
             }
         }
@@ -102,7 +106,7 @@ fn calculate_move(
     in_range.reverse();
     if let Some((chosen, _)) = in_range.pop() {
         let mut first_steps: Vec<(Array1<usize>, isize)> = Vec::new();
-        for neigh in neighs(&cmbtnt.pos) {
+        for neigh in neighs(&cmbtnt.pos.borrow()) {
             if map[neigh[0]][neigh[1]] != '.' {
                 continue;
             }
@@ -121,18 +125,19 @@ fn calculate_move(
         return None;
     }
 }
-
-fn calculate_target_index(cmbtnt: &Combatant, cmbtnts: &Vec<Combatant>) -> Option<usize> {
-    let ns = neighs(&cmbtnt.pos);
+fn calculate_target<'t>(cmbtnt: &Combatant, cmbtnts: &'t Vec<Combatant>) -> Option<&'t Combatant> {
+    let ns = neighs(&cmbtnt.pos.borrow());
     let mut candidates: Vec<(usize, &Combatant)> = cmbtnts
         .iter()
         .enumerate()
-        .filter(|(_, e)| e.hp > 0 && e.race != cmbtnt.race && ns.contains(&e.pos))
+        .filter(|(_, e)| {
+            *e.hp.borrow() > 0 && e.race != cmbtnt.race && ns.contains(&e.pos.borrow())
+        })
         .collect();
-    candidates.sort_by_key(|(_, e)| (e.hp, e.pos[0], e.pos[1]));
+    candidates.sort_by_key(|(_, e)| (*e.hp.borrow(), e.pos.borrow()[0], e.pos.borrow()[1]));
     candidates.reverse();
-    if let Some((i, _)) = candidates.pop() {
-        return Some(i);
+    if let Some((_, target)) = candidates.pop() {
+        return Some(target);
     } else {
         return None;
     }
@@ -146,13 +151,13 @@ fn part(input: String, part1: bool) -> isize {
             match col {
                 'E' => orig_combatants.push(Combatant {
                     race: 'E',
-                    pos: arr1(&[row_i, col_i]),
-                    hp: ELF_HP,
+                    pos: RefCell::new(arr1(&[row_i, col_i])),
+                    hp: RefCell::new(ELF_HP),
                 }),
                 'G' => orig_combatants.push(Combatant {
                     race: 'G',
-                    pos: arr1(&[row_i, col_i]),
-                    hp: GOBLIN_HP,
+                    pos: RefCell::new(arr1(&[row_i, col_i])),
+                    hp: RefCell::new(GOBLIN_HP),
                 }),
                 _ => (),
             }
@@ -160,7 +165,7 @@ fn part(input: String, part1: bool) -> isize {
     }
     let orig_elf_count = orig_combatants
         .iter()
-        .filter(|c| c.race == 'E' && c.hp > 0)
+        .filter(|c| c.race == 'E' && *c.hp.borrow() > 0)
         .count();
     let mut rounds: isize;
     let mut dmgs: HashMap<char, isize> = HashMap::from([('G', 3), ('E', 3)]);
@@ -169,12 +174,12 @@ fn part(input: String, part1: bool) -> isize {
         let mut combatants = orig_combatants.clone();
         rounds = 0;
         'outer: loop {
-            for i in 0..combatants.len() {
+            for cur in &combatants {
                 if !part1
                     && orig_elf_count
                         != combatants
                             .iter()
-                            .filter(|c| c.race == 'E' && c.hp > 0)
+                            .filter(|c| c.race == 'E' && *c.hp.borrow() > 0)
                             .count()
                 {
                     if let Some(dmg) = dmgs.get_mut(&'E') {
@@ -183,42 +188,42 @@ fn part(input: String, part1: bool) -> isize {
                     }
                     continue 'outerouter;
                 }
-                if combatants[i].hp <= 0 {
+                if *cur.hp.borrow() <= 0 {
                     continue;
                 }
                 for race in ['E', 'G'] {
                     if combatants
                         .iter()
-                        .filter(|c| c.race == race && c.hp > 0)
+                        .filter(|c| c.race == race && *c.hp.borrow() > 0)
                         .count()
                         == 0
                     {
                         break 'outer;
                     }
                 }
-                if let Some(mv) = calculate_move(&combatants[i], &combatants, &map) {
-                    map[combatants[i].pos[0]][combatants[i].pos[1]] = '.';
-                    map[mv[0]][mv[1]] = combatants[i].race;
-                    combatants[i].pos = mv;
+                if let Some(mv) = calculate_move(&cur, &combatants, &map) {
+                    map[cur.pos.borrow()[0]][cur.pos.borrow()[1]] = '.';
+                    map[mv[0]][mv[1]] = cur.race;
+                    *cur.pos.borrow_mut() = mv;
                 }
-                if let Some(target_index) = calculate_target_index(&combatants[i], &combatants) {
-                    let attacker_race = combatants[i].race;
-                    combatants[target_index].hp -= dmgs.get(&attacker_race).unwrap();
-                    if combatants[target_index].hp <= 0 {
-                        map[combatants[target_index].pos[0]][combatants[target_index].pos[1]] = '.';
+                if let Some(target) = calculate_target(&cur, &combatants) {
+                    let attacker_race = cur.race;
+                    *target.hp.borrow_mut() -= dmgs.get(&attacker_race).unwrap();
+                    if *target.hp.borrow() <= 0 {
+                        map[target.pos.borrow()[0]][target.pos.borrow()[1]] = '.';
                     }
                 }
                 // pprint(&map, &combatants);
             }
-            combatants.retain(|e| e.hp > 0);
-            combatants.sort_by_key(|e| (e.pos[0], e.pos[1]));
+            combatants.retain(|e| *e.hp.borrow() > 0);
+            combatants.sort_by_key(|e| (e.pos.borrow()[0], e.pos.borrow()[1]));
             rounds += 1;
             // println!("rounds: {:?}", rounds);
         }
-        combatants.retain(|e| e.hp > 0);
+        combatants.retain(|e| *e.hp.borrow() > 0);
         // println!("rounds: {:?}", rounds);
         // println!("combatants: {:?}", combatants);
-        return combatants.iter().map(|c| c.hp).sum::<isize>() * rounds;
+        return combatants.iter().map(|c| *c.hp.borrow()).sum::<isize>() * rounds;
     }
 }
 

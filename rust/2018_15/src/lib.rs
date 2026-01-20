@@ -174,32 +174,30 @@ fn part(input: String, part1: bool) -> isize {
         rounds = 0;
         'outer: loop {
             for cur in &combatants {
-                if !part1
-                    && orig_elf_count
-                        != combatants
-                            .iter()
-                            .filter(|c| c.race == 'E' && c.hp.get() > 0)
-                            .count()
-                {
+                let (mut elf_cnt, mut gbl_cnt) = (0, 0);
+                for c in combatants.iter().filter(|&e| e.hp.get() > 0) {
+                    if c.race == 'E' {
+                        elf_cnt += 1;
+                    } else {
+                        gbl_cnt += 1;
+                    }
+                }
+                if !part1 && orig_elf_count != elf_cnt {
                     if let Some(dmg) = dmgs.get_mut(&'E') {
                         *dmg += 1;
                         // println!("dmg: {:?}", dmg)
                     }
                     continue 'outerouter;
                 }
+
                 if cur.hp.get() <= 0 {
                     continue;
                 }
-                for race in ['E', 'G'] {
-                    if combatants
-                        .iter()
-                        .filter(|c| c.race == race && c.hp.get() > 0)
-                        .count()
-                        == 0
-                    {
-                        break 'outer;
-                    }
+
+                if elf_cnt == 0 || gbl_cnt == 0 {
+                    break 'outer;
                 }
+
                 if let Some(mv) = calculate_move(&cur, &combatants, &map) {
                     map[cur.pos.borrow()[0]][cur.pos.borrow()[1]] = '.';
                     map[mv[0]][mv[1]] = cur.race;

@@ -34,10 +34,23 @@ fn pprint(map: &Vec<Vec<char>>, cmbtnts: &Vec<Combatant>) {
     }
 }
 
+// fn neighs(pos: &Array1<isize>) -> Vec<Array1<isize>> {
+//     [arr1(&[-1, 0]), arr1(&[0, -1]), arr1(&[1, 0]), arr1(&[0, 1])]
+//         .iter()
+//         .map(|e| e + pos)
+//         .collect()
+// }
+//
+
 fn neighs(pos: &Array1<isize>) -> Vec<Array1<isize>> {
-    [arr1(&[-1, 0]), arr1(&[0, -1]), arr1(&[1, 0]), arr1(&[0, 1])]
+    [(-1, 0), (0, -1), (1, 0), (0, 1)]
         .iter()
-        .map(|e| e + pos)
+        .map(|e| {
+            let mut n = pos.clone();
+            n[0] += e.0;
+            n[1] += e.1;
+            n
+        })
         .collect()
 }
 
@@ -93,7 +106,8 @@ fn calculate_move(
             }
         }
     }
-    in_range.sort_by_key(|(pos, len)| len * -1000000 + pos[0] * -1000 - pos[1]);
+    in_range.sort_by_key(|(pos, len)| (*len, pos[0], pos[1]));
+    in_range.reverse();
     if let Some((chosen, _)) = in_range.pop() {
         let mut first_steps: Vec<(Array1<isize>, isize)> = Vec::new();
         for neigh in neighs(&cmbtnt.pos) {
@@ -104,7 +118,8 @@ fn calculate_move(
                 first_steps.push((neigh.clone(), dist));
             }
         }
-        first_steps.sort_by_key(|(pos, len)| len * -1000000 + pos[0] * -1000 - pos[1]); //sorting desc to be able to pop next!
+        first_steps.sort_by_key(|(pos, len)| (*len, pos[0], pos[1]));
+        first_steps.reverse();
         if let Some(first_step) = first_steps.pop() {
             return Some(first_step.0);
         } else {
@@ -121,9 +136,9 @@ fn calculate_target_index(cmbtnt: &Combatant, cmbtnts: &Vec<Combatant>) -> Optio
         .iter()
         .enumerate()
         .filter(|(_, e)| e.hp > 0 && e.race != cmbtnt.race && ns.contains(&e.pos))
-        .map(|(i, e)| (i, e))
         .collect();
-    candidates.sort_by_key(|(_, e)| e.hp * -1000000 + e.pos[0] * -1000 - e.pos[1]);
+    candidates.sort_by_key(|(_, e)| (e.hp, e.pos[0], e.pos[1]));
+    candidates.reverse();
     if let Some((i, _)) = candidates.pop() {
         return Some(i);
     } else {
@@ -205,7 +220,7 @@ fn part(input: String, part1: bool) -> isize {
                 // pprint(&map, &combatants);
             }
             combatants.retain(|e| e.hp > 0);
-            combatants.sort_by_key(|e| e.pos[0] * 1000 + e.pos[1]);
+            combatants.sort_by_key(|e| (e.pos[0], e.pos[1]));
             rounds += 1;
             // println!("rounds: {:?}", rounds);
         }

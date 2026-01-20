@@ -9,7 +9,7 @@ use std::time::Instant;
 #[derive(Clone, Debug)]
 struct Combatant {
     race: char,
-    pos: Array1<isize>,
+    pos: Array1<usize>,
     hp: isize,
 }
 
@@ -26,7 +26,7 @@ fn pprint(map: &Vec<Vec<char>>, cmbtnts: &Vec<Combatant>) {
         }
         print!(" ");
         for cmbtnt in cmbtnts {
-            if cmbtnt.pos[0] == row_i as isize {
+            if cmbtnt.pos[0] == row_i {
                 print!("{}({})", cmbtnt.race, cmbtnt.hp);
             }
         }
@@ -34,21 +34,13 @@ fn pprint(map: &Vec<Vec<char>>, cmbtnts: &Vec<Combatant>) {
     }
 }
 
-// fn neighs(pos: &Array1<isize>) -> Vec<Array1<isize>> {
-//     [arr1(&[-1, 0]), arr1(&[0, -1]), arr1(&[1, 0]), arr1(&[0, 1])]
-//         .iter()
-//         .map(|e| e + pos)
-//         .collect()
-// }
-//
-
-fn neighs(pos: &Array1<isize>) -> Vec<Array1<isize>> {
-    [(-1, 0), (0, -1), (1, 0), (0, 1)]
+fn neighs(pos: &Array1<usize>) -> Vec<Array1<usize>> {
+    [(-1isize, 0), (0, -1), (1, 0), (0, 1)]
         .iter()
         .map(|e| {
             let mut n = pos.clone();
-            n[0] += e.0;
-            n[1] += e.1;
+            n[0] = (n[0] as isize + e.0) as usize;
+            n[1] = (n[1] as isize + e.1) as usize;
             n
         })
         .collect()
@@ -58,13 +50,13 @@ fn neighs(pos: &Array1<isize>) -> Vec<Array1<isize>> {
 // or None if there is no path
 // adjacent positions have distance 1
 fn get_shortest_path_len(
-    from: &Array1<isize>,
-    to: &Array1<isize>,
+    from: &Array1<usize>,
+    to: &Array1<usize>,
     map: &Vec<Vec<char>>,
 ) -> Option<isize> {
     //flood fill for now
-    let mut todo: VecDeque<(Array1<isize>, isize)> = VecDeque::from([(from.clone(), 0)]);
-    let mut seen: HashSet<Array1<isize>> = HashSet::from([from.clone()]);
+    let mut todo: VecDeque<(Array1<usize>, isize)> = VecDeque::from([(from.clone(), 0)]);
+    let mut seen: HashSet<Array1<usize>> = HashSet::from([from.clone()]);
     if from == to {
         return Some(0);
     }
@@ -74,7 +66,7 @@ fn get_shortest_path_len(
             if neigh == to {
                 return Some(len + 1);
             }
-            if map[neigh[0] as usize][neigh[1] as usize] != '.' {
+            if map[neigh[0]][neigh[1]] != '.' {
                 continue;
             }
             if seen.insert(neigh.clone()) {
@@ -91,14 +83,14 @@ fn calculate_move(
     cmbtnt: &Combatant,
     cmbtnts: &Vec<Combatant>,
     map: &Vec<Vec<char>>,
-) -> Option<Array1<isize>> {
-    let mut in_range: Vec<(Array1<isize>, isize)> = Vec::new();
+) -> Option<Array1<usize>> {
+    let mut in_range: Vec<(Array1<usize>, isize)> = Vec::new();
     for trgt in cmbtnts.iter().filter(|c| c.race != cmbtnt.race && c.hp > 0) {
         for trgt_neigh in neighs(&trgt.pos) {
             if trgt_neigh == cmbtnt.pos {
                 return None; //target in range, no need to mave
             }
-            if map[trgt_neigh[0] as usize][trgt_neigh[1] as usize] != '.' {
+            if map[trgt_neigh[0]][trgt_neigh[1]] != '.' {
                 continue;
             }
             if let Some(dist) = get_shortest_path_len(&cmbtnt.pos, &trgt_neigh, map) {
@@ -109,9 +101,9 @@ fn calculate_move(
     in_range.sort_by_key(|(pos, len)| (*len, pos[0], pos[1]));
     in_range.reverse();
     if let Some((chosen, _)) = in_range.pop() {
-        let mut first_steps: Vec<(Array1<isize>, isize)> = Vec::new();
+        let mut first_steps: Vec<(Array1<usize>, isize)> = Vec::new();
         for neigh in neighs(&cmbtnt.pos) {
-            if map[neigh[0] as usize][neigh[1] as usize] != '.' {
+            if map[neigh[0]][neigh[1]] != '.' {
                 continue;
             }
             if let Some(dist) = get_shortest_path_len(&neigh, &chosen, &map) {
@@ -154,12 +146,12 @@ fn part(input: String, part1: bool) -> isize {
             match col {
                 'E' => orig_combatants.push(Combatant {
                     race: 'E',
-                    pos: arr1(&[row_i as isize, col_i as isize]),
+                    pos: arr1(&[row_i, col_i]),
                     hp: ELF_HP,
                 }),
                 'G' => orig_combatants.push(Combatant {
                     race: 'G',
-                    pos: arr1(&[row_i as isize, col_i as isize]),
+                    pos: arr1(&[row_i, col_i]),
                     hp: GOBLIN_HP,
                 }),
                 _ => (),
@@ -205,16 +197,15 @@ fn part(input: String, part1: bool) -> isize {
                     }
                 }
                 if let Some(mv) = calculate_move(&combatants[i], &combatants, &map) {
-                    map[combatants[i].pos[0] as usize][combatants[i].pos[1] as usize] = '.';
-                    map[mv[0] as usize][mv[1] as usize] = combatants[i].race;
+                    map[combatants[i].pos[0]][combatants[i].pos[1]] = '.';
+                    map[mv[0]][mv[1]] = combatants[i].race;
                     combatants[i].pos = mv;
                 }
                 if let Some(target_index) = calculate_target_index(&combatants[i], &combatants) {
                     let attacker_race = combatants[i].race;
                     combatants[target_index].hp -= dmgs.get(&attacker_race).unwrap();
                     if combatants[target_index].hp <= 0 {
-                        map[combatants[target_index].pos[0] as usize]
-                            [combatants[target_index].pos[1] as usize] = '.';
+                        map[combatants[target_index].pos[0]][combatants[target_index].pos[1]] = '.';
                     }
                 }
                 // pprint(&map, &combatants);

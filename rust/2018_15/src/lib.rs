@@ -1,9 +1,6 @@
 use ndarray::{arr1, Array1};
-use std::cell::Cell;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::collections::VecDeque;
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::fs;
 use std::time::Instant;
@@ -126,6 +123,7 @@ fn calculate_move(
         return None;
     }
 }
+
 fn calculate_target<'t>(cmbtnt: &Combatant, cmbtnts: &'t Vec<Combatant>) -> Option<&'t Combatant> {
     let ns = neighs(&cmbtnt.pos.borrow());
     let mut candidates: Vec<(usize, &Combatant)> = cmbtnts

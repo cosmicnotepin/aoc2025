@@ -124,6 +124,8 @@ fn part(input: String, part1: bool) -> isize {
                     (row as isize + row_d) as usize,
                     (col as isize + col_d) as usize,
                 );
+                // i am just flood-filling from all inside fields, this could be https://en.wikipedia.org/wiki/Shoelace_formula for the area
+                // and https://en.wikipedia.org/wiki/Pick%27s_theorem for the inside of that
                 let mut todo = Vec::from([inside_candidate]);
                 while let Some(cur) = todo.pop() {
                     if border.contains(&cur) || !inside.insert(cur) {

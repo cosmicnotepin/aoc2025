@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fs;
 use std::time::Instant;
 
-const INPUT_PATH: &str = "./../../input/01/input";
+const INPUT_PATH: &str = "./input/input";
 
 fn part(input: String, part1: bool) -> isize {
     return if part1 {
@@ -28,7 +28,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const TINPUT_PATH: &str = "./../../input/01/tinput";
+    const TINPUT_PATH: &str = "./input/tinput";
 
     #[test]
     fn p1_1() {

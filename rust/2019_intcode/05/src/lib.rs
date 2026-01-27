@@ -26,7 +26,6 @@ impl ICC {
         res[0] = opc % 100;
         opc = opc / 100;
         for i in 1..3 {
-            println!("opc : {:?}", opc);
             res[i] = opc % 10;
             opc = opc / 10;
         }
@@ -35,7 +34,6 @@ impl ICC {
     fn run(&mut self) {
         loop {
             let [op, m1, m2] = self.decode_opc();
-            println!("[op, m1, m2]: {:?}", [op, m1, m2]);
             match op {
                 99 => {
                     return;
@@ -65,6 +63,38 @@ impl ICC {
                     let _ = self.tx.send(oprnd1);
                     self.ip += 2;
                 }
+                5 => {
+                    let oprnd1 = self.mem(self.ip + 1, m1);
+                    let oprnd2 = self.mem(self.ip + 2, m2);
+                    if oprnd1 != 0 {
+                        self.ip = oprnd2 as usize;
+                    } else {
+                        self.ip += 3
+                    }
+                }
+                6 => {
+                    let oprnd1 = self.mem(self.ip + 1, m1);
+                    let oprnd2 = self.mem(self.ip + 2, m2);
+                    if oprnd1 == 0 {
+                        self.ip = oprnd2 as usize;
+                    } else {
+                        self.ip += 3
+                    }
+                }
+                7 => {
+                    let dest_i = self.memory[self.ip + 3] as usize;
+                    let oprnd1 = self.mem(self.ip + 1, m1);
+                    let oprnd2 = self.mem(self.ip + 2, m2);
+                    self.memory[dest_i] = if oprnd1 < oprnd2 { 1 } else { 0 };
+                    self.ip += 4;
+                }
+                8 => {
+                    let dest_i = self.memory[self.ip + 3] as usize;
+                    let oprnd1 = self.mem(self.ip + 1, m1);
+                    let oprnd2 = self.mem(self.ip + 2, m2);
+                    self.memory[dest_i] = if oprnd1 == oprnd2 { 1 } else { 0 };
+                    self.ip += 4;
+                }
 
                 opc => panic!("unexpected opcode: {opc}"),
             }
@@ -79,26 +109,23 @@ fn part(input: String, part1: bool) -> isize {
         .map(|s| s.parse().unwrap())
         .collect();
 
-    if part1 {
-        let (to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC {
-            memory: program,
-            ip: 0,
-            tx,
-            rx,
-        };
-        thread::spawn(move || icc.run());
-        let _ = to_icc.send(1);
-        let mut last_val = 0;
-        for val in from_icc {
-            println!("val: {:?}", val);
-            last_val = val;
-        }
-        return last_val;
-    } else {
-        return 0;
+    let id = if part1 { 1 } else { 5 };
+
+    let (to_icc, rx) = mpsc::channel::<isize>();
+    let (tx, from_icc) = mpsc::channel::<isize>();
+    let mut icc = ICC {
+        memory: program,
+        ip: 0,
+        tx,
+        rx,
     };
+    thread::spawn(move || icc.run());
+    let _ = to_icc.send(id);
+    let mut last_val = 0;
+    for val in from_icc {
+        last_val = val;
+    }
+    return last_val;
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {
@@ -180,6 +207,50 @@ mod tests {
 
         icc.run();
         assert_eq!(99, icc.memory[4]);
+    }
+
+    #[test]
+    fn p2_2() {
+        let input = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99".to_string();
+        let program: Vec<isize> = input
+            .trim()
+            .split(',')
+            .map(|s| s.parse().unwrap())
+            .collect();
+        let (to_icc, rx) = mpsc::channel::<isize>();
+        let (tx, from_icc) = mpsc::channel::<isize>();
+        let mut icc = ICC {
+            memory: program,
+            ip: 0,
+            tx,
+            rx,
+        };
+        let _ = to_icc.send(4);
+
+        icc.run();
+        assert_eq!(999, from_icc.recv().unwrap());
+    }
+
+    #[test]
+    fn p2_3() {
+        let input = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99".to_string();
+        let program: Vec<isize> = input
+            .trim()
+            .split(',')
+            .map(|s| s.parse().unwrap())
+            .collect();
+        let (to_icc, rx) = mpsc::channel::<isize>();
+        let (tx, from_icc) = mpsc::channel::<isize>();
+        let mut icc = ICC {
+            memory: program,
+            ip: 0,
+            tx,
+            rx,
+        };
+        let _ = to_icc.send(190);
+
+        icc.run();
+        assert_eq!(1001, from_icc.recv().unwrap());
     }
 
     #[test]

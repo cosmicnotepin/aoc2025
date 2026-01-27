@@ -14,15 +14,26 @@ struct ICC {
 }
 
 impl ICC {
-    fn new(mut program: Vec<isize>, tx: Sender<isize>, rx: Receiver<isize>) -> ICC {
+    fn new(program_string: String) -> (ICC, Sender<isize>, Receiver<isize>) {
+        let mut program: Vec<isize> = program_string
+            .trim()
+            .split(',')
+            .map(|s| s.parse().unwrap())
+            .collect();
         program.extend(iter::repeat_n(0, 1000));
-        ICC {
-            memory: program,
-            ip: 0,
-            tx,
-            rx,
-            rel_base: 0,
-        }
+        let (to_icc, rx) = mpsc::channel::<isize>();
+        let (tx, from_icc) = mpsc::channel::<isize>();
+        (
+            ICC {
+                memory: program,
+                ip: 0,
+                tx,
+                rx,
+                rel_base: 0,
+            },
+            to_icc,
+            from_icc,
+        )
     }
     fn mem(&self, index: usize, mode: usize) -> isize {
         let mut res = self.memory[index];
@@ -132,17 +143,9 @@ impl ICC {
 }
 
 fn part(input: String, part1: bool) -> isize {
-    let program: Vec<isize> = input
-        .trim()
-        .split(',')
-        .map(|s| s.parse().unwrap())
-        .collect();
-
     let id = if part1 { 1 } else { 2 };
 
-    let (to_icc, rx) = mpsc::channel::<isize>();
-    let (tx, from_icc) = mpsc::channel::<isize>();
-    let mut icc = ICC::new(program, tx, rx);
+    let (mut icc, to_icc, from_icc) = ICC::new(input);
     thread::spawn(move || icc.run());
     let _ = to_icc.send(id);
     let mut last_val = 0;
@@ -168,19 +171,12 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const TINPUT_PATH: &str = "./input/tinput";
+    //const TINPUT_PATH: &str = "./input/tinput";
 
     #[test]
     fn p1_1() {
         let input = "1,1,1,4,99,5,6,0,99".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (_to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, _from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, _, _) = ICC::new(input);
 
         icc.run();
         assert_eq!(30, icc.memory[0]);
@@ -189,14 +185,7 @@ mod tests {
     #[test]
     fn p1_2() {
         let input = "1,9,10,3,2,3,11,0,99,30,40,50".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (_to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, _from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, _, _) = ICC::new(input);
 
         icc.run();
         assert_eq!(3500, icc.memory[0]);
@@ -205,14 +194,7 @@ mod tests {
     #[test]
     fn p1_3() {
         let input = "1002,4,3,4,33".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (_to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, _from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, _, _) = ICC::new(input);
 
         icc.run();
         assert_eq!(99, icc.memory[4]);
@@ -221,14 +203,7 @@ mod tests {
     #[test]
     fn p2_2() {
         let input = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, to_icc, from_icc) = ICC::new(input);
         let _ = to_icc.send(4);
 
         icc.run();
@@ -238,14 +213,7 @@ mod tests {
     #[test]
     fn p2_3() {
         let input = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, to_icc, from_icc) = ICC::new(input);
         let _ = to_icc.send(190);
 
         icc.run();
@@ -255,14 +223,7 @@ mod tests {
     #[test]
     fn p2_9() {
         let input = "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (_to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, _to_icc, from_icc) = ICC::new(input.clone());
 
         icc.run();
         drop(icc); //without this the iterator below just blocks it seems
@@ -279,14 +240,7 @@ mod tests {
     #[test]
     fn p2_91() {
         let input = "1102,34915192,34915192,7,4,7,99,0".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (_to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, _to_icc, from_icc) = ICC::new(input.clone());
 
         icc.run();
         drop(icc); //without this the iterator below just blocks it seems
@@ -303,14 +257,7 @@ mod tests {
     #[test]
     fn p2_92() {
         let input = "104,1125899906842624,99".to_string();
-        let program: Vec<isize> = input
-            .trim()
-            .split(',')
-            .map(|s| s.parse().unwrap())
-            .collect();
-        let (_to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC::new(program, tx, rx);
+        let (mut icc, _to_icc, from_icc) = ICC::new(input.clone());
 
         icc.run();
         drop(icc); //without this the iterator below just blocks it seems

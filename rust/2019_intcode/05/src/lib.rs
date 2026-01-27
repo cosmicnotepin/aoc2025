@@ -13,6 +13,14 @@ struct ICC {
 }
 
 impl ICC {
+    fn new(program: Vec<isize>, tx: Sender<isize>, rx: Receiver<isize>) -> ICC {
+        ICC {
+            memory: program,
+            ip: 0,
+            tx,
+            rx,
+        }
+    }
     fn mem(&self, index: usize, immediate: usize) -> isize {
         let mut res = self.memory[index];
         if immediate == 0 {
@@ -113,12 +121,7 @@ fn part(input: String, part1: bool) -> isize {
 
     let (to_icc, rx) = mpsc::channel::<isize>();
     let (tx, from_icc) = mpsc::channel::<isize>();
-    let mut icc = ICC {
-        memory: program,
-        ip: 0,
-        tx,
-        rx,
-    };
+    let mut icc = ICC::new(program, tx, rx);
     thread::spawn(move || icc.run());
     let _ = to_icc.send(id);
     let mut last_val = 0;
@@ -156,12 +159,7 @@ mod tests {
             .collect();
         let (_to_icc, rx) = mpsc::channel::<isize>();
         let (tx, _from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC {
-            memory: program,
-            ip: 0,
-            tx,
-            rx,
-        };
+        let mut icc = ICC::new(program, tx, rx);
 
         icc.run();
         assert_eq!(30, icc.memory[0]);
@@ -177,12 +175,7 @@ mod tests {
             .collect();
         let (_to_icc, rx) = mpsc::channel::<isize>();
         let (tx, _from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC {
-            memory: program,
-            ip: 0,
-            tx,
-            rx,
-        };
+        let mut icc = ICC::new(program, tx, rx);
 
         icc.run();
         assert_eq!(3500, icc.memory[0]);
@@ -198,12 +191,7 @@ mod tests {
             .collect();
         let (_to_icc, rx) = mpsc::channel::<isize>();
         let (tx, _from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC {
-            memory: program,
-            ip: 0,
-            tx,
-            rx,
-        };
+        let mut icc = ICC::new(program, tx, rx);
 
         icc.run();
         assert_eq!(99, icc.memory[4]);
@@ -219,12 +207,7 @@ mod tests {
             .collect();
         let (to_icc, rx) = mpsc::channel::<isize>();
         let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC {
-            memory: program,
-            ip: 0,
-            tx,
-            rx,
-        };
+        let mut icc = ICC::new(program, tx, rx);
         let _ = to_icc.send(4);
 
         icc.run();
@@ -241,12 +224,7 @@ mod tests {
             .collect();
         let (to_icc, rx) = mpsc::channel::<isize>();
         let (tx, from_icc) = mpsc::channel::<isize>();
-        let mut icc = ICC {
-            memory: program,
-            ip: 0,
-            tx,
-            rx,
-        };
+        let mut icc = ICC::new(program, tx, rx);
         let _ = to_icc.send(190);
 
         icc.run();

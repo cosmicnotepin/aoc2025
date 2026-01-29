@@ -87,9 +87,13 @@ impl ICC {
                 }
                 3 => {
                     let dest_i = self.mem_dest_i(self.ip + 1, m1);
-                    let input = self.rx.recv().unwrap();
-                    self.memory[dest_i] = input;
-                    self.ip += 2;
+                    match self.rx.recv() {
+                        Ok(input) => {
+                            self.memory[dest_i] = input;
+                            self.ip += 2;
+                        }
+                        Err(_) => return,
+                    }
                 }
                 4 => {
                     let oprnd1 = self.mem(self.ip + 1, m1);

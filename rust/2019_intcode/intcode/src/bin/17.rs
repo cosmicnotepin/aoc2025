@@ -2,7 +2,7 @@ use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::time::Instant;
-use std::{fs, process};
+use std::{fs, process, thread};
 
 const INPUT_PATH: &str = "./input/17/input";
 
@@ -26,15 +26,9 @@ fn pprint(map: &HashMap<(isize, isize), char>) {
 }
 
 fn part(input: String, part1: bool) -> isize {
-    if !part1 {
-        return 0;
-    }
-
-    let (mut icc, _to_icc, from_icc) = ICC::new(input);
-    // thread::spawn(move || icc.run());
+    let (mut icc, _to_icc, from_icc) = ICC::new(input.clone());
     icc.run();
     drop(icc);
-    println!("from_icc: {:?}", from_icc);
     let mut map: HashMap<(isize, isize), char> = HashMap::new();
     let (mut y, mut x) = (0, 0);
     for val in from_icc {
@@ -46,13 +40,84 @@ fn part(input: String, part1: bool) -> isize {
         map.insert((y, x), (val as u8) as char);
         x += 1;
     }
-    pprint(&map);
-    let (intersections, path) = pathify(&map);
-    println!("path: {:?}", path);
+    if part1 {
+        pprint(&map);
+    }
+    let (intersections, i_path) = pathify(&map);
+    let turn2char = HashMap::from([(1, 'L'), (-1, 'R')]);
+    let mut path: Vec<(char, usize)> = i_path
+        .iter()
+        .map(|(turn, len)| (*turn2char.get(turn).unwrap(), *len))
+        .collect();
+    // println!("path: {:?}", path);
+    // println!("path.len(): {:?}", path.len());
     if part1 {
         return intersections;
     }
-    return 0;
+    let a = vec![('R', 12), ('L', 10), ('R', 12)];
+    let b = vec![('L', 8), ('R', 10), ('R', 6)];
+    let c = vec![('R', 12), ('L', 10), ('R', 10), ('L', 8)];
+    let abc = vec![('A', a), ('B', b), ('C', c)];
+    for (c, pat) in &abc[..3] {
+        let mut i = 0;
+        'outer: loop {
+            for j in 0..pat.len() {
+                if i + j >= path.len() {
+                    break 'outer;
+                }
+                if path[i + j] != pat[j] {
+                    i += 1;
+                    continue 'outer;
+                }
+            }
+            for _j in 0..pat.len() {
+                path.remove(i);
+            }
+            path.insert(i, (*c, 0));
+        }
+        // println!("path: {:?}", path);
+        // println!("path.len(): {:?}", path.len());
+    }
+    let (mut icc, to_icc, from_icc) = ICC::new(input);
+    icc.memory[0] = 2;
+    thread::spawn(move || icc.run());
+    //icc.run();
+    let _ = to_icc.send(path[0].0 as isize);
+    for (mf, _) in &path[1..] {
+        let _ = to_icc.send(',' as isize);
+        let _ = to_icc.send(*mf as isize);
+    }
+    let _ = to_icc.send(10);
+    for (_, pat) in abc {
+        let _ = to_icc.send(pat[0].0 as isize);
+        let _ = to_icc.send(',' as isize);
+        for dc in pat[0].1.to_string().chars() {
+            let _ = to_icc.send(dc as isize);
+        }
+
+        for (turn, len) in &pat[1..] {
+            let _ = to_icc.send(',' as isize);
+            let _ = to_icc.send(*turn as isize);
+            let _ = to_icc.send(',' as isize);
+            for dc in len.to_string().chars() {
+                let _ = to_icc.send(dc as isize);
+            }
+        }
+        let _ = to_icc.send(10);
+    }
+    let _ = to_icc.send('n' as isize);
+    let _ = to_icc.send(10);
+    for val in from_icc.iter() {
+        if val > 1000 {
+            return val;
+        }
+        if val == 10 {
+            println!();
+        } else {
+            print!("{}", (val as u8) as char);
+        }
+    }
+    return 0; //error case
 }
 
 fn pathify(map: &HashMap<(isize, isize), char>) -> (isize, Vec<(isize, usize)>) {
@@ -73,6 +138,7 @@ fn pathify(map: &HashMap<(isize, isize), char>) -> (isize, Vec<(isize, usize)>) 
         let mut path_elem = (0, 0);
         //check left and right for scaffolding
         for turn in [1, -1] {
+            // dirs is directions in counterclockwise order, thus: dir+1 is "turn left", dir-1 is "turn right"
             let test_dir = (dir as isize + turn).rem_euclid(4) as usize;
             let delta = dirs[test_dir];
             let (y, x) = (pos_y + delta.0, pos_x + delta.1);

@@ -7,6 +7,7 @@ use std::{fs, process, thread};
 const INPUT_PATH: &str = "./input/17/input";
 
 use intcode::icc::ICC;
+use itertools::Itertools;
 
 #[allow(unused)]
 fn pprint(map: &HashMap<(isize, isize), char>) {
@@ -49,8 +50,6 @@ fn part(input: String, part1: bool) -> isize {
         .iter()
         .map(|(turn, len)| (*turn2char.get(turn).unwrap(), *len))
         .collect();
-    // println!("path: {:?}", path);
-    // println!("path.len(): {:?}", path.len());
     if part1 {
         return intersections;
     }
@@ -81,41 +80,26 @@ fn part(input: String, part1: bool) -> isize {
     let (mut icc, to_icc, from_icc) = ICC::new(input);
     icc.memory[0] = 2;
     thread::spawn(move || icc.run());
-    //icc.run();
-    let _ = to_icc.send(path[0].0 as isize);
-    for (mf, _) in &path[1..] {
-        let _ = to_icc.send(',' as isize);
-        let _ = to_icc.send(*mf as isize);
-    }
-    let _ = to_icc.send(10);
-    for (_, pat) in abc {
-        let _ = to_icc.send(pat[0].0 as isize);
-        let _ = to_icc.send(',' as isize);
-        for dc in pat[0].1.to_string().chars() {
-            let _ = to_icc.send(dc as isize);
-        }
+    let mut config: String = String::new();
+    config += &path.iter().map(|(mf, _)| mf).join(",");
+    config.push('\n');
 
-        for (turn, len) in &pat[1..] {
-            let _ = to_icc.send(',' as isize);
-            let _ = to_icc.send(*turn as isize);
-            let _ = to_icc.send(',' as isize);
-            for dc in len.to_string().chars() {
-                let _ = to_icc.send(dc as isize);
-            }
-        }
-        let _ = to_icc.send(10);
+    for (_, pat) in abc {
+        config += &pat
+            .iter()
+            .map(|(turn, len)| turn.to_string() + "," + &len.to_string())
+            .join(",");
+        config.push('\n');
     }
-    let _ = to_icc.send('n' as isize);
-    let _ = to_icc.send(10);
+    config.extend(['n', '\n']);
+    for c in config.chars() {
+        let _ = to_icc.send(c as isize);
+    }
     for val in from_icc.iter() {
         if val > 1000 {
             return val;
         }
-        if val == 10 {
-            println!();
-        } else {
-            print!("{}", (val as u8) as char);
-        }
+        print!("{}", (val as u8) as char);
     }
     return 0; //error case
 }

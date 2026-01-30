@@ -18,7 +18,7 @@ impl ICC {
             .split(',')
             .map(|s| s.parse().unwrap())
             .collect();
-        program.extend(iter::repeat_n(0, 1000));
+        program.extend(iter::repeat_n(0, 10000));
         let (to_icc, rx) = mpsc::channel::<isize>();
         let (tx, from_icc) = mpsc::channel::<isize>();
         (

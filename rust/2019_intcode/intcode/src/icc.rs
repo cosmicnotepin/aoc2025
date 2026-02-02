@@ -1,7 +1,4 @@
-use std::{
-    iter,
-    sync::mpsc::{self, Receiver, Sender},
-};
+use std::{collections::VecDeque, iter};
 
 const ADD: usize = 1;
 const MUL: usize = 2;
@@ -14,35 +11,56 @@ const EQ: usize = 8;
 const SRB: usize = 9;
 const HLT: usize = 99;
 
+pub enum State {
+    Halted,
+    Output(isize),
+    Waiting,
+}
+
+pub enum MState {
+    Halted(String),
+    Waiting(String),
+}
+
 pub struct ICC {
     pub memory: Vec<isize>,
     ip: usize,
-    tx: Sender<isize>,
-    rx: Receiver<isize>,
+    pub input_queue: VecDeque<isize>,
     rel_base: usize,
 }
 
 impl ICC {
-    pub fn new(program_string: String) -> (ICC, Sender<isize>, Receiver<isize>) {
+    pub fn run_until_first_output(&mut self) -> isize {
+        match self.run() {
+            State::Output(val) => return val,
+            _ => panic!("no output"),
+        }
+    }
+
+    pub fn run_until_halted_or_waiting(&mut self) -> MState {
+        let mut output: Vec<String> = Vec::new();
+
+        loop {
+            match self.run() {
+                State::Output(val) => output.push(val.to_string()),
+                State::Halted => return MState::Halted(output.join(",")),
+                State::Waiting => return MState::Waiting(output.join(",")),
+            }
+        }
+    }
+    pub fn new(program_string: &str) -> ICC {
         let mut program: Vec<isize> = program_string
             .trim()
             .split(',')
             .map(|s| s.parse().unwrap())
             .collect();
         program.extend(iter::repeat_n(0, 10000));
-        let (to_icc, rx) = mpsc::channel::<isize>();
-        let (tx, from_icc) = mpsc::channel::<isize>();
-        (
-            ICC {
-                memory: program,
-                ip: 0,
-                tx,
-                rx,
-                rel_base: 0,
-            },
-            to_icc,
-            from_icc,
-        )
+        ICC {
+            memory: program,
+            ip: 0,
+            input_queue: VecDeque::new(),
+            rel_base: 0,
+        }
     }
     fn mem(&self, index: usize, mode: usize) -> isize {
         let mut res = self.memory[index];
@@ -96,7 +114,6 @@ impl ICC {
             }
             IN => {
                 a = self.mem_dest_i(self.ip + 1, m_a) as isize;
-                self.ip += 2
             }
             HLT => (),
             _ => panic!("unexpected op in decode_inst"),
@@ -106,25 +123,24 @@ impl ICC {
     fn set(&mut self, dest_i: usize, val: isize) {
         self.memory[dest_i] = val;
     }
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> State {
         loop {
             let (op, a, b, c) = self.decode_inst();
             match op {
-                HLT => return,
+                HLT => return State::Halted,
 
                 ADD => self.set(c, a + b),
 
                 MUL => self.set(c, a * b),
 
-                IN => match self.rx.recv() {
-                    Ok(input) => {
+                IN => match self.input_queue.pop_front() {
+                    Some(input) => {
                         self.set(a as usize, input);
+                        self.ip += 2
                     }
-                    Err(_) => return,
+                    None => return State::Waiting,
                 },
-                OUT => {
-                    let _ = self.tx.send(a);
-                }
+                OUT => return State::Output(a),
                 JNZ => {
                     if a != 0 {
                         self.ip = b as usize;

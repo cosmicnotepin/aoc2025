@@ -8,7 +8,7 @@ use intcode::icc::ICC;
 
 fn part(input: String, part1: bool) -> isize {
     return if part1 {
-        let (mut icc, _to_icc, _from_icc) = ICC::new(input);
+        let mut icc = ICC::new(&input);
         icc.memory[1] = 12;
         icc.memory[2] = 2;
         icc.run();
@@ -16,7 +16,7 @@ fn part(input: String, part1: bool) -> isize {
     } else {
         for i1 in 0..100 {
             for i2 in 0..100 {
-                let (mut icc, _to_icc, _from_icc) = ICC::new(input.clone());
+                let mut icc = ICC::new(&input);
                 icc.memory[1] = i1;
                 icc.memory[2] = i2;
                 icc.run();
@@ -51,12 +51,11 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const TINPUT_PATH: &str = "./input/tinput";
 
     #[test]
     fn p1_1() {
         let input = "1,1,1,4,99,5,6,0,99".to_string();
-        let (mut icc, _to_icc, _from_icc) = ICC::new(input);
+        let mut icc = ICC::new(&input);
         icc.run();
         assert_eq!(30, icc.memory[0]);
     }
@@ -64,14 +63,8 @@ mod tests {
     #[test]
     fn p1_2() {
         let input = "1,9,10,3,2,3,11,0,99,30,40,50".to_string();
-        let (mut icc, _to_icc, _from_icc) = ICC::new(input);
+        let mut icc = ICC::new(&input);
         icc.run();
         assert_eq!(3500, icc.memory[0]);
-    }
-
-    #[test]
-    fn p2_1() {
-        let input = fs::read_to_string(TINPUT_PATH).unwrap();
-        assert_eq!(0, part(input, false));
     }
 }

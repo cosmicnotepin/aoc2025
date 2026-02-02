@@ -1,64 +1,54 @@
-use itertools::Itertools;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::error::Error;
-use std::time::{Duration, Instant};
-use std::{fs, process, thread};
+use std::time::Instant;
+use std::{fs, process};
 
-use intcode::icc::ICC;
+use intcode::icc::{ICC, State};
 const INPUT_PATH: &str = "./input/13/input";
 const SHOW_OUTPUT: bool = false;
 
 fn part(input: String, part1: bool) -> isize {
     if part1 {
-        let (mut icc, _to_icc, from_icc) = ICC::new(input);
-        thread::spawn(move || icc.run());
-        let mut p1_res = 0;
-        for (_x, _y, tile_id) in from_icc.iter().tuples() {
-            if tile_id == 2 {
-                p1_res += 1;
-            }
+        let mut icc = ICC::new(&input);
+        let mut p1_res = Vec::new();
+        while let State::Output(val) = icc.run() {
+            p1_res.push(val);
         }
-        return p1_res;
+        return p1_res
+            .iter()
+            .skip(2)
+            .step_by(3)
+            .filter(|&a| *a == 2)
+            .count() as isize;
     } else {
-        let (mut icc, to_icc, from_icc) = ICC::new(input);
+        let mut icc = ICC::new(&input);
         icc.memory[0] = 2;
-        let jh = thread::spawn(move || icc.run());
         let mut map: HashMap<(isize, isize), isize> = HashMap::new();
         let mut paddle_x = 0;
-        let mut ball_x;
-
-        while let Ok(val) = from_icc.recv_timeout(Duration::from_millis(1)) {
-            let x = val;
-            let y = from_icc.recv().unwrap();
-            let tile_id = from_icc.recv().unwrap();
-            map.insert((y, x), tile_id);
-            if tile_id == 3 {
-                paddle_x = x;
-            }
-        }
-        let _ = to_icc.send(1);
-
+        let mut ball_x = 0;
         loop {
-            if jh.is_finished() {
-                pprint(&map);
-                return *map.get(&(0, -1)).unwrap();
-            }
-            while let Ok(val) = from_icc.recv_timeout(Duration::from_millis(1)) {
-                let x = val;
-                let y = from_icc.recv().unwrap();
-                let tile_id = from_icc.recv().unwrap();
-                map.insert((y, x), tile_id);
-                if tile_id == 3 {
-                    paddle_x = x;
-                }
-                if tile_id == 4 {
+            match icc.run() {
+                State::Halted => {
                     pprint(&map);
-                    ball_x = x;
-                    let _ = to_icc.send((ball_x - paddle_x).signum());
+                    break;
+                }
+                State::Output(x) => {
+                    let y = icc.run_until_first_output();
+                    let tile_id = icc.run_until_first_output();
+                    map.insert((y, x), tile_id);
+                    match tile_id {
+                        3 => paddle_x = x,
+                        4 => ball_x = x,
+                        _ => (),
+                    }
+                }
+                State::Waiting => {
+                    icc.input_queue.push_back((ball_x - paddle_x).signum());
                 }
             }
         }
+        return *map.get(&(0, -1)).unwrap();
     }
 }
 
@@ -73,13 +63,14 @@ fn pprint(map: &HashMap<(isize, isize), isize>) {
     }
     for y in 0..max_y + 1 {
         for x in 0..max_x + 1 {
-            match map.get(&(y, x)).unwrap() {
-                0 => print!(" "),
-                1 => print!("#"),
-                2 => print!("+"),
-                3 => print!("-"),
-                4 => print!("o"),
-                _ => panic!("what is this??"),
+            match map.get(&(y, x)) {
+                Some(0) => print!(" "),
+                Some(1) => print!("#"),
+                Some(2) => print!("+"),
+                Some(3) => print!("-"),
+                Some(4) => print!("o"),
+                Some(_) => panic!("what is this?"),
+                None => print!(" "),
             }
         }
         println!();

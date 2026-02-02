@@ -43,15 +43,6 @@ fn part(input: String, part1: bool) -> isize {
         map.insert((y, x), (val as u8) as char);
         x += 1;
     }
-    // for val in from_icc {
-    //     if val == 10 {
-    //         y += 1;
-    //         x = 0;
-    //         continue;
-    //     }
-    //     map.insert((y, x), (val as u8) as char);
-    //     x += 1;
-    // }
     if part1 {
         pprint(&map);
     }

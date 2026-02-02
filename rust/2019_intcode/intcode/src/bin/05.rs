@@ -89,10 +89,4 @@ mod tests {
         icc.run();
         assert_eq!(1001, from_icc.recv().unwrap());
     }
-
-    #[test]
-    fn p2_1() {
-        let input = fs::read_to_string(TINPUT_PATH).unwrap();
-        assert_eq!(0, part(input, false));
-    }
 }

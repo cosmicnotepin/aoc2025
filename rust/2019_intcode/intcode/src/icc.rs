@@ -3,6 +3,17 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
+const ADD: usize = 1;
+const MUL: usize = 2;
+const IN: usize = 3;
+const OUT: usize = 4;
+const JNZ: usize = 5;
+const JIZ: usize = 6;
+const LT: usize = 7;
+const EQ: usize = 8;
+const SRB: usize = 9;
+const HLT: usize = 99;
+
 pub struct ICC {
     pub memory: Vec<isize>,
     ip: usize,
@@ -64,80 +75,69 @@ impl ICC {
         }
         return res;
     }
+    fn decode_inst(&mut self) -> (usize, isize, isize, usize) {
+        let [op, m_a, m_b, m_c] = self.decode_opc();
+        let (mut a, mut b, mut c) = (0, 0, 0);
+        match op {
+            ADD | MUL | LT | EQ => {
+                a = self.mem(self.ip + 1, m_a);
+                b = self.mem(self.ip + 2, m_b);
+                c = self.mem_dest_i(self.ip + 3, m_c);
+                self.ip += 4;
+            }
+            JNZ | JIZ => {
+                a = self.mem(self.ip + 1, m_a);
+                b = self.mem(self.ip + 2, m_b);
+                self.ip += 3;
+            }
+            SRB | OUT => {
+                a = self.mem(self.ip + 1, m_a);
+                self.ip += 2;
+            }
+            IN => {
+                a = self.mem_dest_i(self.ip + 1, m_a) as isize;
+                self.ip += 2
+            }
+            HLT => (),
+            _ => panic!("unexpected op in decode_inst"),
+        }
+        (op, a, b, c)
+    }
+    fn set(&mut self, dest_i: usize, val: isize) {
+        self.memory[dest_i] = val;
+    }
     pub fn run(&mut self) {
         loop {
-            let [op, m1, m2, m3] = self.decode_opc();
+            let (op, a, b, c) = self.decode_inst();
             match op {
-                99 => {
-                    return;
-                }
-                1 => {
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    let oprnd2 = self.mem(self.ip + 2, m2);
-                    let dest_i = self.mem_dest_i(self.ip + 3, m3);
-                    self.memory[dest_i] = oprnd1 + oprnd2;
-                    self.ip += 4;
-                }
-                2 => {
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    let oprnd2 = self.mem(self.ip + 2, m2);
-                    let dest_i = self.mem_dest_i(self.ip + 3, m3);
-                    self.memory[dest_i] = oprnd1 * oprnd2;
-                    self.ip += 4;
-                }
-                3 => {
-                    let dest_i = self.mem_dest_i(self.ip + 1, m1);
-                    match self.rx.recv() {
-                        Ok(input) => {
-                            self.memory[dest_i] = input;
-                            self.ip += 2;
-                        }
-                        Err(_) => return,
-                    }
-                }
-                4 => {
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    let _ = self.tx.send(oprnd1);
-                    self.ip += 2;
-                }
-                5 => {
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    let oprnd2 = self.mem(self.ip + 2, m2);
-                    if oprnd1 != 0 {
-                        self.ip = oprnd2 as usize;
-                    } else {
-                        self.ip += 3
-                    }
-                }
-                6 => {
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    let oprnd2 = self.mem(self.ip + 2, m2);
-                    if oprnd1 == 0 {
-                        self.ip = oprnd2 as usize;
-                    } else {
-                        self.ip += 3
-                    }
-                }
-                7 => {
-                    let dest_i = self.mem_dest_i(self.ip + 3, m3);
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    let oprnd2 = self.mem(self.ip + 2, m2);
-                    self.memory[dest_i] = if oprnd1 < oprnd2 { 1 } else { 0 };
-                    self.ip += 4;
-                }
-                8 => {
-                    let dest_i = self.mem_dest_i(self.ip + 3, m3);
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    let oprnd2 = self.mem(self.ip + 2, m2);
-                    self.memory[dest_i] = if oprnd1 == oprnd2 { 1 } else { 0 };
-                    self.ip += 4;
-                }
-                9 => {
-                    let oprnd1 = self.mem(self.ip + 1, m1);
-                    self.rel_base = (self.rel_base as isize + oprnd1) as usize;
-                    self.ip += 2;
-                }
+                HLT => return,
 
+                ADD => self.set(c, a + b),
+
+                MUL => self.set(c, a * b),
+
+                IN => match self.rx.recv() {
+                    Ok(input) => {
+                        self.set(a as usize, input);
+                    }
+                    Err(_) => return,
+                },
+                OUT => {
+                    let _ = self.tx.send(a);
+                }
+                JNZ => {
+                    if a != 0 {
+                        self.ip = b as usize;
+                    }
+                }
+                JIZ => {
+                    if a == 0 {
+                        self.ip = b as usize;
+                    }
+                }
+                LT => self.set(c, if a < b { 1 } else { 0 }),
+                EQ => self.set(c, if a == b { 1 } else { 0 }),
+                SRB => self.rel_base = (self.rel_base as isize + a) as usize,
                 opc => panic!("unexpected opcode: {opc}"),
             }
         }

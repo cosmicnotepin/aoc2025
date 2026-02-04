@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::thread::{sleep, spawn, yield_now};
+use std::thread::{spawn, yield_now};
 use std::time::Instant;
 use std::{fs, process};
 
@@ -84,6 +84,7 @@ fn part(input: String, part1: bool) -> isize {
             }
             println!("val: {:?}", val);
             let _ = senders[0].send(val);
+            WAIT_COUNTS[0].store(0, Ordering::Release);
             last_sent = val;
         }
     }

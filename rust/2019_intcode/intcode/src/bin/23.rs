@@ -1,13 +1,19 @@
 use std::collections::VecDeque;
 use std::error::Error;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::thread::spawn;
+use std::thread::{sleep, spawn, yield_now};
 use std::time::Instant;
 use std::{fs, process};
 
 const INPUT_PATH: &str = "./input/23/input";
 
 use intcode::icc::ICC;
+
+static WAIT_COUNTS: [AtomicU64; 50] = {
+    const INIT: AtomicU64 = AtomicU64::new(0);
+    [INIT; 50]
+};
 
 fn part(input: String, part1: bool) -> isize {
     let mut senders: Vec<Sender<(isize, isize)>> = Vec::new();
@@ -29,6 +35,7 @@ fn part(input: String, part1: bool) -> isize {
                 match icc.run() {
                     intcode::icc::State::Halted => return,
                     intcode::icc::State::Output(targ_naddr) => {
+                        WAIT_COUNTS[naddr as usize].store(0, Ordering::Release);
                         let x = icc.run_until_first_output();
                         let y = icc.run_until_first_output();
                         if targ_naddr == 255 {
@@ -41,7 +48,11 @@ fn part(input: String, part1: bool) -> isize {
                         Ok((x, y)) => {
                             icc.input_queue.extend([x, y].iter());
                         }
-                        Err(_) => icc.input_queue.push_back(-1),
+                        Err(_) => {
+                            icc.input_queue.push_back(-1);
+
+                            WAIT_COUNTS[naddr as usize].fetch_add(1, Ordering::Release);
+                        }
                     },
                 }
             }
@@ -55,7 +66,26 @@ fn part(input: String, part1: bool) -> isize {
             return 0;
         }
     } else {
-        return 0;
+        let mut last_sent = (-1, -1);
+        // last_val = rec255.recv().unwrap();
+        loop {
+            while !WAIT_COUNTS
+                .iter()
+                .all(|c| c.load(Ordering::Acquire) >= 10000)
+            {
+                yield_now();
+            }
+            let mut val = rec255.recv().unwrap();
+            while let Ok(pckt) = rec255.try_recv() {
+                val = pckt;
+            }
+            if val.1 == last_sent.1 {
+                return val.1;
+            }
+            println!("val: {:?}", val);
+            let _ = senders[0].send(val);
+            last_sent = val;
+        }
     }
 }
 
